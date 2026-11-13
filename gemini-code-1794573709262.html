@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>فاست كاش - نظام إدارة الحوالات والصرافة</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+  </style>
+</head>
+<body class="bg-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    const { useState, useEffect, useMemo } = React;
+
+    // --- Firebase Cloud Initialization ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyDK6CFYl4hw2t6MuAs2_H4-Rws9rPiNvVY",
+      authDomain: "fast-cash-7b9c4.firebaseapp.com",
+      projectId: "fast-cash-7b9c4",
+      storageBucket: "fast-cash-7b9c4.firebasestorage.app",
+      messagingSenderId: "859546803127",
+      appId: "1:859546803127:web:0aeb06e41e780d8f3e6632",
+      measurementId: "G-2HKFEWH722"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = 'fast-cash-7b9c4';
+
+    const getCloudCollection = (collName) => collection(db, 'artifacts', appId, 'public', 'data', collName);
+    const getCloudDoc = (collName, docId) => doc(db, 'artifacts', appId, 'public', 'data', collName, docId);
+
+    // --- Clean SVG Icons ---
+    const IconTrendingUp = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      </svg>
+    );
+
+    const IconWallet = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      </svg>
+    );
+
+    const IconUsers = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    );
+
+    const IconPlusCircle = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+
+    const IconSearch = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    );
+
+    const IconRefreshCw = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    );
+
+    const IconGlobe = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+      </svg>
+    );
+
+    const IconCheckCircle2 = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+
+    const IconXCircle = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+
+    const IconArrowLeftRight = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      </svg>
+    );
+
+    const IconDownload = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+    );
+
+    const IconExchange = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    );
+
+    const IconShield = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    );
+
+    const IconSettings = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    );
+
+    const IconLogOut = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      </svg>
+    );
+
+    const IconLock = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    );
+
+    const IconDatabase = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+      </svg>
+    );
+
+    function App() {
+      const [user, setUser] = useState(null);
+      const [currentUser, setCurrentUser] = useState(() => {
+        const saved = localStorage.getItem('fastcash_current_user');
+        return saved ? JSON.parse(saved) : null;
+      });
+
+      const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+      const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+      const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+      useEffect(() => {
+        const initAuth = async () => {
+          try {
+            await signInAnonymously(auth);
+          } catch (err) {
+            console.error("Auth init error:", err);
+          }
+        };
+        initAuth();
+        const unsubscribe = onAuthStateChanged(auth, setUser);
+        return () => unsubscribe();
+      }, []);
+
+      const [characterState, setCharacterState] = useState('idle');
+      const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+      useEffect(() => {
+        const handleMouseMove = (e) => {
+          setMousePos({ x: e.clientX, y: e.clientY });
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+      }, []);
+
+      const [activeTab, setActiveTab] = useState('dashboard');
+      const [toast, setToast] = useState(null);
+
+      const [sysSettings, setSysSettings] = useState({
+        appName: 'فاست كاش',
+        subTitle: 'نظام إدارة الحوالات والصرافة المتقدم',
+        logoText: 'FC',
+        defaultCurrency: 'USDT'
+      });
+
+      const [users, setUsers] = useState([]);
+      const [wallets, setWallets] = useState([]);
+      const [suppliers, setSuppliers] = useState([]);
+      const [transactions, setTransactions] = useState([]);
+
+      useEffect(() => {
+        if (!user) return;
+
+        const unsubSettings = onSnapshot(getCloudCollection('settings'), (snapshot) => {
+          if (!snapshot.empty) {
+            setSysSettings(snapshot.docs[0].data());
+          } else {
+            const defaultSettings = {
+              appName: 'فاست كاش',
+              subTitle: 'نظام إدارة الحوالات والصرافة المتقدم',
+              logoText: 'FC',
+              defaultCurrency: 'USDT'
+            };
+            setDoc(getCloudDoc('settings', 'config'), defaultSettings);
+          }
+        });
+
+        const unsubUsers = onSnapshot(getCloudCollection('users'), (snapshot) => {
+          if (!snapshot.empty) {
+            setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          } else {
+            const defaultAdmin = { id: 'u-1', name: 'المدير الرئيسي', username: 'admin', password: 'admin123', role: 'admin', status: 'نشط', lastActive: 'الآن' };
+            setDoc(getCloudDoc('users', 'u-1'), defaultAdmin);
+          }
+        });
+
+        const unsubWallets = onSnapshot(getCloudCollection('wallets'), (snapshot) => {
+          if (!snapshot.empty) {
+            setWallets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          } else {
+            const initialWallets = [
+              { id: 'w-1', name: 'محفظة Binance الرئيسية (USDT)', currency: 'USDT', balance: 12500, owner: 'المكتب' },
+              { id: 'w-2', name: 'حساب بنك فلسطين (أحمد رياض - شيكل)', currency: 'ILS', balance: 45000, owner: 'أحمد رياض' },
+              { id: 'w-3', name: 'خزينة المحل الكاش (دولار)', currency: 'USD', balance: 3200, owner: 'خزينة المحل' },
+              { id: 'w-4', name: 'حساب بنك مصر (فودافون كاش - جنيه)', currency: 'EGP', balance: 150000, owner: 'مورد مصر' }
+            ];
+            initialWallets.forEach(w => setDoc(getCloudDoc('wallets', w.id), w));
+          }
+        });
+
+        const unsubSuppliers = onSnapshot(getCloudCollection('suppliers'), (snapshot) => {
+          if (!snapshot.empty) {
+            setSuppliers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          } else {
+            const initialSuppliers = [
+              { id: 's-1', name: 'مورد مصر (مركزي)', country: 'مصر', defaultCurrency: 'EGP', pendingUsdt: 1200, wallets: ['Vodafone 01012345678', 'Banque Misr 99201'], phone: '+201012345678' },
+              { id: 's-2', name: 'مورد تركيا (سريع)', country: 'تركيا', defaultCurrency: 'USD', pendingUsdt: 0, wallets: ['TRX-Turk-881920'], phone: '+90551234567' },
+              { id: 's-3', name: 'مورد PayPal العالمي', country: 'عالمي', defaultCurrency: 'USD', pendingUsdt: 450, wallets: ['pay@fastcash.com'], phone: '-' }
+            ];
+            initialSuppliers.forEach(s => setDoc(getCloudDoc('suppliers', s.id), s));
+          }
+        });
+
+        const unsubTxs = onSnapshot(getCloudCollection('transactions'), (snapshot) => {
+          const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          list.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+          setTransactions(list);
+        });
+
+        return () => {
+          unsubSettings();
+          unsubUsers();
+          unsubWallets();
+          unsubSuppliers();
+          unsubTxs();
+        };
+      }, [user]);
+
+      const [rates, setRates] = useState({ USD_ILS: 3.70, USDT_ILS: 3.72, USD_EGP: 49.50 });
+      const [isLoadingRates, setIsLoadingRates] = useState(false);
+
+      const [searchTerm, setSearchTerm] = useState('');
+      const [dateFilterType, setDateFilterType] = useState('all');
+
+      const [isAddTxOpen, setIsAddTxOpen] = useState(false);
+      const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
+      const [editingWallet, setEditingWallet] = useState(null);
+      const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
+      const [editingSupplier, setEditingSupplier] = useState(null);
+      const [isInternalTransferOpen, setIsInternalTransferOpen] = useState(false);
+      const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+
+      const [walletForm, setWalletForm] = useState({ name: '', currency: 'ILS', balance: '', owner: '' });
+      const [supplierForm, setSupplierForm] = useState({ name: '', country: 'مصر', defaultCurrency: 'EGP', walletsText: '', phone: '' });
+      const [userForm, setUserForm] = useState({ name: '', username: '', password: '', role: 'staff' });
+      const [transferForm, setTransferForm] = useState({ fromWalletId: 'w-1', toWalletId: 'w-2', amount: '', rate: '1' });
+      const [newTx, setNewTx] = useState({
+        clientName: '',
+        supplierId: 's-1',
+        supplierWallet: '',
+        inflowUsdt: '',
+        isUsdtReceived: true,
+        inflowUsdtWalletId: 'w-1',
+        outflowAmount: '',
+        outflowWalletId: 'w-2',
+        exchangeRate: '3.70',
+        notes: ''
+      });
+
+      const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+      };
+
+      const fetchLiveRates = () => {
+        setIsLoadingRates(true);
+        setTimeout(() => {
+          setRates({ USD_ILS: 3.71, USDT_ILS: 3.73, USD_EGP: 49.80 });
+          setIsLoadingRates(false);
+          showToast('تم تحديث أسعار العملات المباشرة 🔄');
+        }, 600);
+      };
+
+      const capitalSummary = useMemo(() => {
+        let totalUsdt = 0, totalIls = 0, totalUsd = 0, totalEgp = 0;
+        wallets.forEach(w => {
+          const bal = parseFloat(w.balance) || 0;
+          if (w.currency === 'USDT') totalUsdt += bal;
+          if (w.currency === 'ILS') totalIls += bal;
+          if (w.currency === 'USD') totalUsd += bal;
+          if (w.currency === 'EGP') totalEgp += bal;
+        });
+
+        const ilsInUsdt = rates.USDT_ILS ? totalIls / rates.USDT_ILS : 0;
+        const usdInUsdt = totalUsd;
+        const egpInUsdt = (rates.USD_EGP && rates.USDT_ILS) ? totalEgp / rates.USD_EGP : 0;
+        const totalCapitalUsdt = totalUsdt + ilsInUsdt + usdInUsdt + egpInUsdt;
+
+        return { totalUsdt, totalIls, totalUsd, totalEgp, totalCapitalUsdt: Math.round(totalCapitalUsdt * 100) / 100 };
+      }, [wallets, rates]);
+
+      const filteredTransactions = useMemo(() => {
+        return transactions.filter(tx => {
+          const matchSearch = tx.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              tx.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              tx.id?.toLowerCase().includes(searchTerm.toLowerCase());
+          if (!matchSearch) return false;
+          const today = new Date().toISOString().split('T')[0];
+          if (dateFilterType === 'today') return tx.date === today;
+          return true;
+        });
+      }, [transactions, searchTerm, dateFilterType]);
+
+      const handleSaveWallet = async (e) => {
+        e.preventDefault();
+        if (!user) return;
+        try {
+          if (editingWallet) {
+            await updateDoc(getCloudDoc('wallets', editingWallet.id), {
+              name: walletForm.name,
+              currency: walletForm.currency,
+              balance: parseFloat(walletForm.balance) || 0,
+              owner: walletForm.owner
+            });
+            showToast('تم تحديث المحفظة في السحاب ✅');
+          } else {
+            const wId = `w-${Date.now()}`;
+            await setDoc(getCloudDoc('wallets', wId), {
+              id: wId,
+              name: walletForm.name,
+              currency: walletForm.currency,
+              balance: parseFloat(walletForm.balance) || 0,
+              owner: walletForm.owner
+            });
+            showToast('تم حفظ المحفظة في السحاب بنجاح ☁️');
+          }
+          setIsAddWalletOpen(false);
+        } catch (err) {
+          showToast('خطأ في الاتصال بقاعدة البيانات السحابية', 'error');
+        }
+      };
+
+      const handleDeleteWallet = async (id) => {
+        if (!user) return;
+        if (wallets.length <= 1) return showToast('لا يمكن حذف المحفظة الوحيدة', 'error');
+        try {
+          await deleteDoc(getCloudDoc('wallets', id));
+          showToast('تم حذف المحفظة من السحاب');
+        } catch (err) {
+          showToast('تعذر الحذف من السحاب', 'error');
+        }
+      };
+
+      const handleSaveSupplier = async (e) => {
+        e.preventDefault();
+        if (!user) return;
+        const wList = supplierForm.walletsText.split('\n').map(x => x.trim()).filter(Boolean);
+        try {
+          if (editingSupplier) {
+            await updateDoc(getCloudDoc('suppliers', editingSupplier.id), {
+              name: supplierForm.name,
+              country: supplierForm.country,
+              defaultCurrency: supplierForm.defaultCurrency,
+              wallets: wList,
+              phone: supplierForm.phone
+            });
+            showToast('تم تحديث بيانات المورد سحابياً');
+          } else {
+            const sId = `s-${Date.now()}`;
+            await setDoc(getCloudDoc('suppliers', sId), {
+              id: sId,
+              name: supplierForm.name,
+              country: supplierForm.country,
+              defaultCurrency: supplierForm.defaultCurrency,
+              pendingUsdt: 0,
+              wallets: wList,
+              phone: supplierForm.phone
+            });
+            showToast('تم حفظ المورد في السحاب');
+          }
+          setIsAddSupplierOpen(false);
+        } catch (err) {
+          showToast('خطأ في حفظ بيانات المورد', 'error');
+        }
+      };
+
+      const handleDeleteSupplier = async (id) => {
+        if (!user) return;
+        try {
+          await deleteDoc(getCloudDoc('suppliers', id));
+          showToast('تم حذف المورد من السحاب');
+        } catch (err) {
+          showToast('تعذر حذف المورد', 'error');
+        }
+      };
+
+      const handleInternalTransfer = async (e) => {
+        e.preventDefault();
+        if (!user) return;
+        const amt = parseFloat(transferForm.amount) || 0;
+        if (amt <= 0) return showToast('يرجى إدخال مبلغ صحيح', 'error');
+
+        const fromW = wallets.find(w => w.id === transferForm.fromWalletId);
+        const toW = wallets.find(w => w.id === transferForm.toWalletId);
+        if (!fromW || !toW) return;
+        if (fromW.balance < amt) return showToast('رصيد المحفظة المصدر غير كافٍ', 'error');
+
+        const rate = parseFloat(transferForm.rate) || 1;
+        const targetAmt = amt * rate;
+
+        try {
+          await updateDoc(getCloudDoc('wallets', fromW.id), { balance: fromW.balance - amt });
+          await updateDoc(getCloudDoc('wallets', toW.id), { balance: toW.balance + targetAmt });
+          showToast(`تم التحويل السحابي بنجاح: ${amt} ${fromW.currency} → ${targetAmt} ${toW.currency}`);
+          setIsInternalTransferOpen(false);
+        } catch (err) {
+          showToast('فشل تنفيذ التحويل في السحاب', 'error');
+        }
+      };
+
+      const handleAddUser = async (e) => {
+        e.preventDefault();
+        if (!user) return;
+        if (!userForm.password) return showToast('يرجى تحديد كلمة مرور للمستخدم الجديد!', 'error');
+        const uId = `u-${Date.now()}`;
+        try {
+          await setDoc(getCloudDoc('users', uId), {
+            id: uId,
+            name: userForm.name,
+            username: userForm.username,
+            password: userForm.password,
+            role: userForm.role,
+            status: 'نشط',
+            lastActive: 'الآن'
+          });
+          showToast('تم حفظ المستخدم الجديد في السحاب ✅');
+          setIsAddUserOpen(false);
+          setUserForm({ name: '', username: '', password: '', role: 'staff' });
+        } catch (err) {
+          showToast('خطأ في حفظ حساب المستخدم', 'error');
+        }
+      };
+
+      const handleAddTransaction = async (e) => {
+        e.preventDefault();
+        if (!user) return;
+
+        const inflow = parseFloat(newTx.inflowUsdt) || 0;
+        const outflow = parseFloat(newTx.outflowAmount) || 0;
+        const outflowWallet = wallets.find(w => w.id === newTx.outflowWalletId);
+
+        if (outflow > 0 && outflowWallet && outflowWallet.balance < outflow) {
+          return showToast(`رصيد المحفظة (${outflowWallet.name}) غير كافٍ لتسليم العميل!`, 'error');
+        }
+
+        try {
+          if (outflow > 0 && outflowWallet) {
+            await updateDoc(getCloudDoc('wallets', outflowWallet.id), {
+              balance: outflowWallet.balance - outflow
+            });
+          }
+
+          if (newTx.isUsdtReceived && inflow > 0) {
+            const inflowW = wallets.find(w => w.id === newTx.inflowUsdtWalletId);
+            if (inflowW) {
+              await updateDoc(getCloudDoc('wallets', inflowW.id), {
+                balance: inflowW.balance + inflow
+              });
+            }
+          }
+
+          if (!newTx.isUsdtReceived && inflow > 0) {
+            const sup = suppliers.find(s => s.id === newTx.supplierId);
+            if (sup) {
+              await updateDoc(getCloudDoc('suppliers', sup.id), {
+                pendingUsdt: (sup.pendingUsdt || 0) + inflow
+              });
+            }
+          }
+
+          const txId = `TX-${Math.floor(1000 + Math.random() * 9000)}`;
+          await setDoc(getCloudDoc('transactions', txId), {
+            id: txId,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+            clientName: newTx.clientName,
+            supplierId: newTx.supplierId,
+            supplierWallet: newTx.supplierWallet,
+            inflowUsdt: inflow,
+            isUsdtReceived: newTx.isUsdtReceived,
+            inflowUsdtWalletId: newTx.inflowUsdtWalletId,
+            clientAmount: outflow,
+            clientCurrency: outflowWallet ? outflowWallet.currency : 'ILS',
+            outflowWalletId: newTx.outflowWalletId,
+            outflowWalletName: outflowWallet ? outflowWallet.name : '',
+            exchangeRate: newTx.exchangeRate,
+            notes: newTx.notes
+          });
+
+          showToast('تم تسجيل وتأكيد الحوالة ومزامنتها سحابياً 🚀');
+          setIsAddTxOpen(false);
+          setNewTx({ ...newTx, clientName: '', inflowUsdt: '', outflowAmount: '', notes: '' });
+        } catch (err) {
+          showToast('تعذر حفظ الحوالة في قاعدة البيانات', 'error');
+        }
+      };
+
+      const handleSettlePendingUsdt = async (supplierId, amount, targetWalletId) => {
+        if (!user) return;
+        try {
+          await updateDoc(getCloudDoc('suppliers', supplierId), { pendingUsdt: 0 });
+          const targetW = wallets.find(w => w.id === targetWalletId);
+          if (targetW) {
+            await updateDoc(getCloudDoc('wallets', targetWalletId), { balance: targetW.balance + amount });
+          }
+          showToast(`تم استلام وتسوية $${amount} USDT وإضافتها للمحفظة سحابياً ✅`);
+        } catch (err) {
+          showToast('خطأ أثناء التسوية السحابية', 'error');
+        }
+      };
+
+      const handleSaveSettings = async (newSettings) => {
+        setSysSettings(newSettings);
+        if (!user) return;
+        try {
+          await setDoc(getCloudDoc('settings', 'config'), newSettings);
+          showToast('تم حفظ الإعدادات في السحاب');
+        } catch (err) {
+          showToast('تعذر حفظ الإعدادات في قاعدة البيانات', 'error');
+        }
+      };
+
+      const handleDailyClosing = () => {
+        showToast('تم إغلاق الجرد اليومي وتأكيد أرصدة الصندوق بنجاح 🔒');
+      };
+
+      const exportToCSV = () => {
+        const headers = ['الرقم', 'التاريخ', 'اسم العميل', 'المورد', 'وارد USDT', 'المبلغ المسلم', 'العملة', 'سعر الصرف', 'الملاحظات'];
+        const rows = filteredTransactions.map(t => [
+          t.id, t.date, t.clientName, t.supplierId, t.inflowUsdt, t.clientAmount, t.clientCurrency, t.exchangeRate, t.notes
+        ]);
+        const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `FastCash_Ledger_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      };
+
+      const handleExportBackup = () => {
+        const backupData = { sysSettings, users, wallets, suppliers, transactions };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", `FastCash_Full_Backup_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        dlAnchor.remove();
+        showToast('تم استخراج ملف النسخة الاحتياطية بنجاح 📦');
+      };
+
+      const handleImportBackup = (e) => {
+        const fileReader = new FileReader();
+        if (e.target.files && e.target.files[0]) {
+          fileReader.readAsText(e.target.files[0], "UTF-8");
+          fileReader.onload = async (event) => {
+            try {
+              const parsed = JSON.parse(event.target.result);
+              if (parsed.sysSettings && parsed.wallets && user) {
+                await setDoc(getCloudDoc('settings', 'config'), parsed.sysSettings);
+                if (parsed.wallets) parsed.wallets.forEach(w => setDoc(getCloudDoc('wallets', w.id), w));
+                if (parsed.suppliers) parsed.suppliers.forEach(s => setDoc(getCloudDoc('suppliers', s.id), s));
+                if (parsed.users) parsed.users.forEach(u => setDoc(getCloudDoc('users', u.id), u));
+                if (parsed.transactions) parsed.transactions.forEach(t => setDoc(getCloudDoc('transactions', t.id), t));
+                showToast('تم استعادة واستبدال كافة البيانات في السحاب بنجاح 🔄');
+              } else {
+                showToast('الملف غير صالح أو بنيته غير مكتملة', 'error');
+              }
+            } catch (err) {
+              showToast('فشل في قراءة ملف JSON', 'error');
+            }
+          };
+        }
+      };
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const userMatch = users.find(u => u.username.toLowerCase() === loginForm.username.toLowerCase());
+        
+        if (!userMatch) {
+          setCharacterState('fail');
+          showToast('اسم المستخدم غير موجود بالنظام! (الافتراضي: admin)', 'error');
+          setTimeout(() => setCharacterState('idle'), 2000);
+          return;
+        }
+
+        if (!loginForm.password || userMatch.password !== loginForm.password) {
+          setCharacterState('fail');
+          showToast('كلمة المرور غير صحيحة! (الافتراضية: admin123) ❌', 'error');
+          setTimeout(() => setCharacterState('idle'), 2000);
+          return;
+        }
+
+        setCharacterState('success');
+        setIsLoggingIn(true);
+        setTimeout(() => {
+          setCurrentUser(userMatch);
+          localStorage.setItem('fastcash_current_user', JSON.stringify(userMatch));
+          setIsLoggingIn(false);
+          setCharacterState('idle');
+          showToast(`أهلاً بك مجدداً ${userMatch.name} 👋`);
+          setLoginForm({ username: '', password: '' });
+        }, 1200);
+      };
+
+      const handleLogout = () => {
+        setCurrentUser(null);
+        localStorage.removeItem('fastcash_current_user');
+        showToast('تم تسجيل الخروج بنجاح');
+      };
+
+      if (!currentUser) {
+        const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
+        const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+        const eyeOffsetX = Math.min(Math.max(((mousePos.x - windowWidth / 2) / (windowWidth / 2)) * 10, -10), 10);
+        const eyeOffsetY = Math.min(Math.max(((mousePos.y - windowHeight / 2) / (windowHeight / 2)) * 8, -8), 8);
+        const headRotate = Math.min(Math.max(((mousePos.x - windowWidth / 2) / (windowWidth / 2)) * 6, -6), 6);
+
+        return (
+          <div className="min-h-screen bg-[#f8faf6] flex items-center justify-center p-4 relative overflow-hidden font-sans" dir="rtl">
+            {toast && (
+              <div className={`fixed bottom-5 left-5 z-50 px-4 py-3 rounded-xl shadow-2xl text-white text-xs font-bold ${
+                toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'
+              }`}>
+                <span>{toast.message}</span>
+              </div>
+            )}
+
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+
+            {isLoggingIn && (
+              <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center transition-all duration-700 animate-[fadeIn_0.3s_ease-out]">
+                <div className="absolute w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl animate-pulse"></div>
+                <div className="relative flex items-center justify-center">
+                  <div className="w-44 h-44 border-2 border-emerald-500/30 border-t-amber-400 border-r-amber-300 rounded-full animate-spin" style={{ animationDuration: '2.2s' }}></div>
+                  <div className="absolute w-36 h-36 border-2 border-dashed border-amber-400/50 rounded-full animate-[spin_3s_linear_infinite_reverse]"></div>
+                  <div className="absolute w-28 h-28 bg-gradient-to-tr from-emerald-950 via-slate-900 to-emerald-900 border-2 border-amber-400 rounded-3xl shadow-[0_0_40px_rgba(245,158,11,0.5)] flex flex-col items-center justify-center animate-pulse">
+                    <div className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-300 to-yellow-500 font-serif">
+                      {sysSettings.logoText}
+                    </div>
+                    <div className="w-10 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent my-1"></div>
+                    <span className="text-[8px] font-black text-amber-300 tracking-widest uppercase">ROYAL CASH</span>
+                  </div>
+                </div>
+                <div className="mt-8 text-center space-y-2 relative z-10">
+                  <p className="text-sm font-black text-amber-300 tracking-widest animate-pulse font-mono">
+                    جاري المصادقة وفتح الخزينة الملكية السحابية...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className={`max-w-md w-full bg-white/95 backdrop-blur-xl border border-emerald-100 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-emerald-950/10 relative z-10 transition-all duration-700 ease-out transform ${
+              isLoggingIn ? '-translate-y-full opacity-0 scale-95' : 'translate-y-0 opacity-100'
+            }`}>
+              <div className="relative w-48 h-48 mx-auto mb-3 flex items-center justify-center">
+                {characterState === 'fail' && <div className="absolute inset-0 bg-rose-500/20 rounded-full blur-2xl animate-ping"></div>}
+                {characterState === 'success' && <div className="absolute inset-0 bg-emerald-500/30 rounded-full blur-2xl animate-pulse"></div>}
+
+                <svg viewBox="0 0 200 200" className={`w-full h-full transition-transform duration-300 ${
+                  characterState === 'fail' ? 'animate-[shake_0.4s_ease-in-out]' : ''
+                } ${characterState === 'success' ? 'animate-[bounce_0.6s_ease-in-out]' : ''}`}>
+                  <path d="M 100 15 L 165 40 Q 165 110 100 175 Q 35 110 35 40 Z" fill="#064e3b" stroke="#047857" strokeWidth="2" opacity="0.15" />
+                  <g style={{ transform: `rotate(${headRotate * 0.3}deg)`, transformOrigin: '100px 100px' }}>
+                    <path d="M 40 120 C 10 80, 25 45, 65 60 C 50 80, 48 105, 45 130 Z" fill="#064e3b" stroke="#047857" strokeWidth="2" />
+                    <path d="M 160 120 C 190 80, 175 45, 135 60 C 150 80, 152 105, 155 130 Z" fill="#064e3b" stroke="#047857" strokeWidth="2" />
+                    <ellipse cx="100" cy="120" rx="42" ry="48" fill="#064e3b" />
+                    <ellipse cx="100" cy="126" rx="28" ry="34" fill="#f8faf6" />
+                    <path d="M 75 92 Q 100 120 125 92" fill="none" stroke="#d97706" strokeWidth="4" strokeLinecap="round" />
+                    <circle cx="100" cy="110" r="10" fill="#f59e0b" stroke="#78350f" strokeWidth="1.5" />
+                    <text x="100" y="114" fill="#064e3b" fontSize="8" fontWeight="900" textAnchor="middle" fontFamily="sans-serif">FC</text>
+                    <path d="M 62 80 C 62 42, 138 42, 138 80 C 138 95, 62 95, 62 80 Z" fill="#10b981" stroke="#047857" strokeWidth="2" />
+                    <path d="M 100 74 Q 100 98 84 94 Q 100 82 100 74 Z" fill="#fbbf24" stroke="#d97706" strokeWidth="1.5" />
+                    <path d="M 72 58 L 94 66" fill="none" stroke="#064e3b" strokeWidth="4.5" strokeLinecap="round" />
+                    <path d="M 128 58 L 106 66" fill="none" stroke="#064e3b" strokeWidth="4.5" strokeLinecap="round" />
+                    <polygon points="74,66 94,70 82,78" fill="#ffffff" stroke="#064e3b" strokeWidth="1.5" />
+                    <polygon points="126,66 106,70 118,78" fill="#ffffff" stroke="#064e3b" strokeWidth="1.5" />
+
+                    {characterState === 'fail' ? (
+                      <>
+                        <circle cx="83" cy="72" r="3" fill="#e11d48" />
+                        <circle cx="117" cy="72" r="3" fill="#e11d48" />
+                      </>
+                    ) : characterState === 'success' ? (
+                      <>
+                        <circle cx="83" cy="72" r="4" fill="#10b981" />
+                        <circle cx="117" cy="72" r="4" fill="#10b981" />
+                      </>
+                    ) : (
+                      <g className="transition-transform duration-75 ease-out">
+                        <circle cx={83 + eyeOffsetX * 0.6} cy={72 + eyeOffsetY * 0.5} r="4" fill="#0f172a" />
+                        <circle cx={83 + eyeOffsetX * 0.6 + 1} cy={72 + eyeOffsetY * 0.5 - 1} r="1.5" fill="#ffffff" />
+                        <circle cx={117 + eyeOffsetX * 0.6} cy={72 + eyeOffsetY * 0.5} r="4" fill="#0f172a" />
+                        <circle cx={117 + eyeOffsetX * 0.6 + 1} cy={72 + eyeOffsetY * 0.5 - 1} r="1.5" fill="#ffffff" />
+                      </g>
+                    )}
+
+                    <path d="M 25 110 C 10 65, 70 50, 88 64 C 70 76, 60 98, 45 125 Z" 
+                      fill="#047857" stroke="#064e3b" strokeWidth="2.5"
+                      className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                        characterState === 'hands_up' ? 'translate-x-[20px] -translate-y-[8px] rotate-[26deg]' : 'translate-x-0 translate-y-0 rotate-0'
+                      }`}
+                      style={{ transformOrigin: '30px 110px' }}
+                    />
+                    <path d="M 175 110 C 190 65, 130 50, 112 64 C 130 76, 140 98, 155 125 Z" 
+                      fill="#047857" stroke="#064e3b" strokeWidth="2.5"
+                      className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                        characterState === 'hands_up' ? '-translate-x-[20px] -translate-y-[8px] -rotate-[26deg]' : 'translate-x-0 translate-y-0 rotate-0'
+                      }`}
+                      style={{ transformOrigin: '170px 110px' }}
+                    />
+                  </g>
+                </svg>
+              </div>
+
+              <div className="text-center space-y-1 mb-6">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">{sysSettings.appName}</h1>
+                <p className="text-xs text-emerald-700 font-bold">{sysSettings.subTitle}</p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">اسم المستخدم</label>
+                  <div className="relative">
+                    <IconUsers className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5" />
+                    <input 
+                      type="text"
+                      required
+                      placeholder="أدخل اسم المستخدم (الافتراضي: admin)"
+                      value={loginForm.username}
+                      onFocus={() => { if (characterState !== 'hands_up') setCharacterState('idle'); }}
+                      onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                      className="w-full pr-10 pl-4 py-2.5 bg-[#f8faf6] border border-emerald-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none transition-all font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">كلمة المرور *</label>
+                  <div className="relative">
+                    <IconLock className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5" />
+                    <input 
+                      type="password"
+                      required
+                      placeholder="أدخل كلمة المرور (الافتراضية: admin123)"
+                      value={loginForm.password}
+                      onFocus={() => setCharacterState('hands_up')}
+                      onBlur={() => setCharacterState('idle')}
+                      onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                      className="w-full pr-10 pl-4 py-2.5 bg-[#f8faf6] border border-emerald-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-emerald-600 focus:bg-white focus:outline-none transition-all font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoggingIn}
+                  className="w-full py-3 bg-gradient-to-r from-emerald-800 via-emerald-700 to-emerald-800 hover:opacity-95 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-900/20 active:scale-[0.98] transition-all mt-2 flex items-center justify-center space-x-2 space-x-reverse group"
+                >
+                  {isLoggingIn ? (
+                    <span className="flex items-center space-x-2 space-x-reverse">
+                      <IconRefreshCw className="w-4 h-4 animate-spin text-amber-300" />
+                      <span>جاري الاتصال السحابي...</span>
+                    </span>
+                  ) : (
+                    <>
+                      <span>تسجيل الدخول للنظام السحابي</span>
+                      <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-slate-100 text-slate-800 font-sans transition-opacity duration-500 animate-[fadeIn_0.5s_ease-out]" dir="rtl">
+
+          {toast && (
+            <div className={`fixed bottom-5 left-5 z-50 px-4 py-3 rounded-xl shadow-2xl text-white text-xs font-bold flex items-center space-x-2 space-x-reverse transition-all ${
+              toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'
+            }`}>
+              <span>{toast.message}</span>
+            </div>
+          )}
+
+          {/* Header */}
+          <header className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-white shadow-lg border-b border-emerald-800 sticky top-0 z-40 backdrop-blur-lg">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
+              
+              <div className="flex items-center space-x-3 space-x-reverse">
+                <div
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  className={`md:hidden relative w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden transition-all border border-emerald-700/60 shadow-md ${
+                    isMobileMenuOpen ? 'bg-emerald-400' : 'bg-emerald-900/80 hover:bg-emerald-800'
+                  }`}
+                >
+                  <div className={`w-5 h-[2.5px] rounded-full absolute transition-all ${isMobileMenuOpen ? 'bg-emerald-950 -translate-x-10 opacity-0' : 'bg-white opacity-100'}`}></div>
+                  <div className={`w-5 h-[2.5px] rounded-full absolute transition-all ${isMobileMenuOpen ? 'bg-emerald-950 translate-y-0 rotate-45' : 'bg-white -translate-y-1.5'}`}></div>
+                  <div className={`w-5 h-[2.5px] rounded-full absolute transition-all ${isMobileMenuOpen ? 'bg-emerald-950 translate-y-0 -rotate-45' : 'bg-white translate-y-1.5'}`}></div>
+                </div>
+
+                <div className="relative group cursor-pointer">
+                  <div className="w-11 h-11 bg-gradient-to-tr from-emerald-950 via-slate-950 to-emerald-900 text-amber-300 rounded-2xl flex flex-col items-center justify-center font-black text-lg shadow-xl border-2 border-amber-400/90 transform group-hover:scale-105 transition-all">
+                    <span className="leading-none text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-300 to-amber-500 font-serif">{sysSettings.logoText}</span>
+                    <span className="text-[6px] tracking-widest text-amber-300/90 font-mono font-extrabold uppercase mt-0.5">EST. 2026</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <h1 className="text-base sm:text-lg font-black tracking-tight text-white">{sysSettings.appName}</h1>
+                    <span className="bg-gradient-to-r from-amber-500/20 to-emerald-800/80 text-amber-300 text-[9px] px-2.5 py-0.5 rounded-full font-bold border border-amber-400/40 uppercase tracking-wider">Fast Cash Cloud</span>
+                  </div>
+                  <p className="text-[10px] sm:text-xs text-emerald-300/80 hidden sm:block">{sysSettings.subTitle}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 sm:space-x-3 space-x-reverse">
+                <div className="hidden md:flex items-center space-x-2 space-x-reverse bg-emerald-900/80 border border-emerald-700/60 px-3 py-1.5 rounded-xl text-xs">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                  <span className="font-bold text-white">{currentUser.name}</span>
+                  <span className="text-[10px] bg-emerald-800 text-emerald-200 px-1.5 py-0.5 rounded font-mono">{currentUser.role}</span>
+                  <button onClick={handleLogout} title="تسجيل الخروج" className="text-slate-300 hover:text-rose-400 mr-2 p-1 transition-colors">
+                    <IconLogOut className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleDailyClosing}
+                  className="hidden sm:flex justify-center bg-emerald-800/90 hover:bg-emerald-700 text-emerald-100 font-bold px-3 py-2 rounded-xl text-xs items-center space-x-1.5 space-x-reverse border border-emerald-700 shadow-sm active:scale-95"
+                >
+                  <IconCheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>جرد وتأكيد اليوم</span>
+                </button>
+
+                <button
+                  onClick={() => setIsAddTxOpen(true)}
+                  className="bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-emerald-950 font-black px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm flex items-center space-x-1.5 space-x-reverse shadow-lg shadow-emerald-500/20 transform hover:-translate-y-0.5 transition-all"
+                >
+                  <IconPlusCircle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  <span className="whitespace-nowrap">تسجيل حوالة</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:block bg-emerald-950/70 border-t border-emerald-800/60 backdrop-blur">
+              <div className="max-w-7xl mx-auto px-4 flex space-x-2 space-x-reverse">
+                {[
+                  { id: 'dashboard', label: 'لوحة التحكم الرئيسية', icon: IconTrendingUp },
+                  { id: 'wallets', label: `المحافظ الفرعية (${wallets.length})`, icon: IconWallet },
+                  { id: 'ledger', label: 'سجل الحوالات والجرد', icon: IconArrowLeftRight },
+                  { id: 'suppliers', label: `إدارة الموردين (${suppliers.length})`, icon: IconUsers },
+                  { id: 'users', label: 'المستخدمين والصلاحيات', icon: IconShield },
+                  { id: 'settings', label: 'إعدادات النظام', icon: IconSettings },
+                ].map(tab => {
+                  const TabIcon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`relative py-3 px-4 text-xs font-bold transition-all flex items-center space-x-2 space-x-reverse rounded-t-xl ${
+                        isActive ? 'text-emerald-300 bg-emerald-900/60 scale-105' : 'text-emerald-200/70 hover:text-white hover:bg-emerald-900/30'
+                      }`}
+                    >
+                      <TabIcon className={`w-4 h-4 ${isActive ? 'scale-110 text-emerald-400' : ''}`} />
+                      <span>{tab.label}</span>
+                      {isActive && <span className="absolute bottom-0 right-0 left-0 h-0.5 bg-gradient-to-r from-emerald-400 to-emerald-300 rounded-full"></span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mobile Drawer */}
+            {isMobileMenuOpen && (
+              <div className="md:hidden bg-slate-950/95 border-b border-emerald-900/80 p-4 space-y-3">
+                <div className="flex items-center justify-between pb-3 border-b border-emerald-900/60 text-xs">
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                    <span className="font-bold text-white">{currentUser.name}</span>
+                    <span className="text-[10px] bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded font-mono">{currentUser.role}</span>
+                  </div>
+                  <button onClick={handleLogout} className="text-rose-400 hover:text-rose-300 text-xs font-bold flex items-center space-x-1 space-x-reverse">
+                    <span>خروج</span>
+                    <IconLogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-1.5 pt-1">
+                  {[
+                    { id: 'dashboard', label: 'لوحة التحكم الرئيسية', icon: IconTrendingUp },
+                    { id: 'wallets', label: `المحافظ الفرعية (${wallets.length})`, icon: IconWallet },
+                    { id: 'ledger', label: 'سجل الحوالات والجرد', icon: IconArrowLeftRight },
+                    { id: 'suppliers', label: `إدارة الموردين (${suppliers.length})`, icon: IconUsers },
+                    { id: 'users', label: 'المستخدمين والصلاحيات', icon: IconShield },
+                    { id: 'settings', label: 'إعدادات النظام', icon: IconSettings },
+                  ].map(tab => {
+                    const TabIcon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }}
+                        className={`w-full text-right py-2.5 px-3.5 rounded-xl text-xs font-bold flex items-center space-x-3 space-x-reverse transition-all ${
+                          isActive ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-900'
+                        }`}
+                      >
+                        <TabIcon className="w-4 h-4" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </header>
+
+          {/* Main Content */}
+          <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
+
+            {/* DASHBOARD */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-6 sm:space-y-8 animate-[fadeIn_0.4s_ease-out]">
+                <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-900 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-xl border border-emerald-800">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 sm:pb-6 border-b border-emerald-800/60">
+                    <div>
+                      <span className="bg-emerald-500 text-emerald-950 font-black text-[10px] sm:text-xs px-2.5 py-1 rounded-md uppercase">Live Cloud Valuation</span>
+                      <h2 className="text-xl sm:text-2xl font-black text-white mt-1">إجمالي رأس مال المحل الموحد بالـ USDT</h2>
+                      <p className="text-xs text-emerald-300 mt-1">مجموع كافة المحافظ المزامنة سحابياً (شيكل، دولار، جنيه، USDT).</p>
+                    </div>
+                    <div className="bg-emerald-900/90 border border-emerald-700 px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl text-right">
+                      <span className="text-[10px] sm:text-[11px] text-emerald-300 block font-semibold">إجمالي رأس المال الصافي</span>
+                      <span className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">${capitalSummary.totalCapitalUsdt.toLocaleString()} USDT</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-5 sm:mt-6">
+                    <div className="bg-emerald-900/40 border border-emerald-700/60 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl">
+                      <span className="text-[11px] sm:text-xs text-emerald-300 font-bold block mb-1">الـ USDT المتاحة</span>
+                      <div className="text-lg sm:text-2xl font-black text-white font-mono">${capitalSummary.totalUsdt.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-emerald-900/40 border border-emerald-700/60 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl">
+                      <span className="text-[11px] sm:text-xs text-emerald-300 font-bold block mb-1">الشيكل (بنك وكاش)</span>
+                      <div className="text-base sm:text-xl font-bold text-white font-mono">₪ {capitalSummary.totalIls.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-emerald-900/40 border border-emerald-700/60 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl">
+                      <span className="text-[11px] sm:text-xs text-emerald-300 font-bold block mb-1">الدولار (بنك وكاش)</span>
+                      <div className="text-base sm:text-xl font-bold text-white font-mono">$ {capitalSummary.totalUsd.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-emerald-900/40 border border-emerald-700/60 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl">
+                      <span className="text-[11px] sm:text-xs text-emerald-300 font-bold block mb-1">الجنيه (فودافون وبنك)</span>
+                      <div className="text-base sm:text-xl font-bold text-white font-mono">ج.م {capitalSummary.totalEgp.toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rates Ticker */}
+                <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                  <div className="flex items-center space-x-3 space-x-reverse">
+                    <div className="p-2 sm:p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shrink-0">
+                      <IconGlobe className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-xs sm:text-sm">أسعار الصرف المباشرة اليوم</h3>
+                      <p className="text-[11px] sm:text-xs text-slate-500">محدثة لمتابعة التسوية بين الشيكل والجنيه والدولار</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 sm:flex items-center gap-2 sm:gap-4 font-mono text-[11px] sm:text-xs">
+                    <span className="bg-slate-100 px-2.5 py-1.5 rounded-lg border font-bold text-center">USD/ILS ₪{rates.USD_ILS}</span>
+                    <span className="bg-slate-100 px-2.5 py-1.5 rounded-lg border font-bold text-center">USDT/ILS ₪{rates.USDT_ILS}</span>
+                    <span className="bg-slate-100 px-2.5 py-1.5 rounded-lg border font-bold text-center">USD/EGP {rates.USD_EGP}</span>
+                    <button onClick={fetchLiveRates} className="p-1.5 text-slate-500 hover:text-emerald-700 hidden sm:block">
+                      <IconRefreshCw className={`w-4 h-4 ${isLoadingRates ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Wallets Overview */}
+                <div>
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base">الأرصدة والمحافظ الفرعية المزامنة سحابياً</h3>
+                    <button onClick={() => setActiveTab('wallets')} className="text-xs font-bold text-emerald-700 hover:underline">
+                      إدارة المحافظ ←
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {wallets.map(w => (
+                      <div key={w.id} className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{w.owner}</span>
+                          <span className="text-[10px] sm:text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{w.currency}</span>
+                        </div>
+                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate">{w.name}</h4>
+                        <div className="text-lg sm:text-xl font-black text-slate-900 font-mono mt-2">
+                          {w.currency === 'ILS' && '₪'} {w.currency === 'USD' && '$'} {w.currency === 'EGP' && 'ج.م '} {w.balance.toLocaleString()} {w.currency === 'USDT' && 'USDT'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* WALLETS MANAGEMENT */}
+            {activeTab === 'wallets' && (
+              <div className="space-y-6 animate-[fadeIn_0.4s_ease-out]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">إدارة وتعديل المحافظ الفرعية والحسابات</h2>
+                    <p className="text-xs text-slate-500">إضافة محافظ جديدة أو تعديل رصيد واسم صاحب المحفظة مباشر بالسحاب</p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setIsInternalTransferOpen(true)} className="bg-emerald-800 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2 space-x-reverse">
+                      <IconExchange className="w-4 h-4" />
+                      <span>تحويل داخلي</span>
+                    </button>
+
+                    <button 
+                      onClick={() => { setEditingWallet(null); setWalletForm({ name: '', currency: 'ILS', balance: '', owner: '' }); setIsAddWalletOpen(true); }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2 space-x-reverse"
+                    >
+                      <IconPlusCircle className="w-4 h-4" />
+                      <span>إضافة محفظة جديدة</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {wallets.map(w => (
+                    <div key={w.id} className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm space-y-3 relative group">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            صاحب الحساب: {w.owner}
+                          </span>
+                          <h3 className="font-bold text-slate-900 text-base mt-2">{w.name}</h3>
+                        </div>
+                        <span className="bg-slate-900 text-white font-mono font-bold text-xs px-2.5 py-1 rounded-lg">{w.currency}</span>
+                      </div>
+
+                      <div className="pt-2">
+                        <span className="text-xs text-slate-400 block font-medium">الرصيد الحقيقي الحالي</span>
+                        <span className="text-2xl font-black text-slate-900 font-mono">
+                          {w.currency === 'ILS' && '₪'} {w.currency === 'USD' && '$'} {w.currency === 'EGP' && 'ج.م '} {w.balance.toLocaleString()} {w.currency === 'USDT' && 'USDT'}
+                        </span>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 flex justify-end gap-2 text-xs">
+                        <button 
+                          onClick={() => {
+                            setEditingWallet(w);
+                            setWalletForm({ name: w.name, currency: w.currency, balance: w.balance.toString(), owner: w.owner });
+                            setIsAddWalletOpen(true);
+                          }}
+                          className="text-emerald-700 hover:text-emerald-900 font-bold px-2 py-1 bg-emerald-50 rounded"
+                        >
+                          تعديل
+                        </button>
+                        <button onClick={() => handleDeleteWallet(w.id)} className="text-rose-600 hover:text-rose-800 font-bold px-2 py-1 bg-rose-50 rounded">
+                          حذف
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TRANSACTIONS LEDGER */}
+            {activeTab === 'ledger' && (
+              <div className="space-y-4 sm:space-y-6 animate-[fadeIn_0.4s_ease-out]">
+                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 sm:space-y-4">
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
+                    <div className="relative w-full md:w-72">
+                      <IconSearch className="w-4 h-4 absolute right-3.5 top-3 text-slate-400" />
+                      <input 
+                        type="text" 
+                        placeholder="بحث باسم العميل، المحفظة..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pr-10 pl-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <button onClick={() => setDateFilterType('all')} className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-bold ${dateFilterType === 'all' ? 'bg-emerald-800 text-white' : 'bg-slate-100 text-slate-700'}`}>الجميع</button>
+                      <button onClick={() => setDateFilterType('today')} className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-bold ${dateFilterType === 'today' ? 'bg-emerald-800 text-white' : 'bg-slate-100 text-slate-700'}`}>اليوم</button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button onClick={exportToCSV} className="w-full md:w-auto justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold border flex items-center gap-1.5">
+                        <IconDownload className="w-4 h-4" />
+                        <span>تصدير إكسل</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right text-xs sm:text-sm min-w-[700px]">
+                      <thead>
+                        <tr className="bg-slate-900 text-white font-bold text-[11px] sm:text-xs">
+                          <th className="p-3 sm:p-3.5">الرقم / التاريخ</th>
+                          <th className="p-3 sm:p-3.5">اسم العميل</th>
+                          <th className="p-3 sm:p-3.5">المورد والمحفظة</th>
+                          <th className="p-3 sm:p-3.5 text-emerald-400">وارد USDT</th>
+                          <th className="p-3 sm:p-3.5 text-rose-400">المبلغ المسلم</th>
+                          <th className="p-3 sm:p-3.5">سعر الصرف</th>
+                          <th className="p-3 sm:p-3.5 text-center">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredTransactions.map(tx => {
+                          const supplier = suppliers.find(s => s.id === tx.supplierId);
+                          return (
+                            <tr key={tx.id} className="hover:bg-slate-50">
+                              <td className="p-3 sm:p-3.5 font-mono text-[11px] sm:text-xs">
+                                <span className="font-bold text-slate-900 block">{tx.id}</span>
+                                <span className="text-slate-400">{tx.date} {tx.time}</span>
+                              </td>
+                              <td className="p-3 sm:p-3.5 font-bold text-slate-900">{tx.clientName}</td>
+                              <td className="p-3 sm:p-3.5 text-xs">
+                                <span className="font-bold text-slate-800 block">{supplier?.name || '-'}</span>
+                                <span className="text-[10px] sm:text-[11px] font-mono text-slate-500">{tx.supplierWallet || '-'}</span>
+                              </td>
+                              <td className="p-3 sm:p-3.5 font-extrabold">
+                                {tx.inflowUsdt > 0 ? (
+                                  <div>
+                                    <span className="text-emerald-700 font-mono block">${tx.inflowUsdt} USDT</span>
+                                    {tx.isUsdtReceived ? (
+                                      <span className="text-[9px] sm:text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-normal">تمت الإضافة للمحفظة</span>
+                                    ) : (
+                                      <span className="text-[9px] sm:text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-normal">معلقة لدى المورد</span>
+                                    )}
+                                  </div>
+                                ) : '-'}
+                              </td>
+                              <td className="p-3 sm:p-3.5">
+                                {tx.clientAmount > 0 ? (
+                                  <div>
+                                    <span className="font-bold text-slate-900 block font-mono">{tx.clientAmount} {tx.clientCurrency}</span>
+                                    <span className="text-[9px] sm:text-[10px] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">خصم من: {tx.outflowWalletName || 'المكتب'}</span>
+                                  </div>
+                                ) : '-'}
+                              </td>
+                              <td className="p-3 sm:p-3.5 font-mono text-xs">{tx.exchangeRate || '-'}</td>
+                              <td className="p-3 sm:p-3.5 text-center">
+                                <button 
+                                  onClick={async () => {
+                                    if (!user) return;
+                                    try {
+                                      await deleteDoc(getCloudDoc('transactions', tx.id));
+                                      showToast('تم حذف الحوالة من السحاب');
+                                    } catch (err) {
+                                      showToast('فشل حذف الحوالة', 'error');
+                                    }
+                                  }}
+                                  className="text-xs text-rose-600 hover:text-rose-800 font-bold"
+                                >
+                                  حذف
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUPPLIERS */}
+            {activeTab === 'suppliers' && (
+              <div className="space-y-6 animate-[fadeIn_0.4s_ease-out]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">إدارة وتعديل الموردين المزامنة سحابياً</h2>
+                    <p className="text-xs text-slate-500">تحديث محفظة الاستلام والتأكد من المستحقات</p>
+                  </div>
+
+                  <button 
+                    onClick={() => { setEditingSupplier(null); setSupplierForm({ name: '', country: 'مصر', defaultCurrency: 'EGP', walletsText: '', phone: '' }); setIsAddSupplierOpen(true); }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center space-x-2 space-x-reverse"
+                  >
+                    <IconPlusCircle className="w-4 h-4" />
+                    <span>إضافة مورد جديد</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {suppliers.map(sup => {
+                    const supTxs = transactions.filter(t => t.supplierId === sup.id);
+                    const pendingUsdt = sup.pendingUsdt || 0;
+
+                    return (
+                      <div key={sup.id} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4 relative">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-bold text-slate-900 text-base">{sup.name}</h3>
+                            <span className="text-xs text-slate-500">{sup.country} • العملة: {sup.defaultCurrency}</span>
+                          </div>
+                          <span className="text-xs bg-slate-100 px-2 py-0.5 rounded font-bold">{supTxs.length} حوالة</span>
+                        </div>
+
+                        {pendingUsdt > 0 && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                            <div className="flex justify-between items-center text-xs font-bold text-amber-900">
+                              <span>USDT معلق عند المورد:</span>
+                              <span className="font-mono text-sm">${pendingUsdt} USDT</span>
+                            </div>
+                            <button onClick={() => handleSettlePendingUsdt(sup.id, pendingUsdt, 'w-1')} className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-1.5 rounded-lg">
+                              تسوية وإرسال للمحفظة الرئيسية ←
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-bold text-slate-500 block">المحافظ والحسابات المسجلة للمورد:</span>
+                          {sup.wallets && sup.wallets.length > 0 ? (
+                            sup.wallets.map((w, idx) => (
+                              <div key={idx} className="text-xs bg-slate-50 p-1.5 rounded border border-slate-100 font-mono text-slate-700 truncate">• {w}</div>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">لا توجد محافظ مضافة</span>
+                          )}
+                        </div>
+
+                        <div className="pt-2 border-t flex justify-end gap-2 text-xs">
+                          <button 
+                            onClick={() => {
+                              setEditingSupplier(sup);
+                              setSupplierForm({ name: sup.name, country: sup.country, defaultCurrency: sup.defaultCurrency, walletsText: sup.wallets ? sup.wallets.join('\n') : '', phone: sup.phone });
+                              setIsAddSupplierOpen(true);
+                            }}
+                            className="text-emerald-700 hover:text-emerald-900 font-bold px-2 py-1 bg-emerald-50 rounded"
+                          >
+                            تعديل
+                          </button>
+                          <button onClick={() => handleDeleteSupplier(sup.id)} className="text-rose-600 hover:text-rose-800 font-bold px-2 py-1 bg-rose-50 rounded">حذف</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* USERS & PERMISSIONS */}
+            {activeTab === 'users' && (
+              <div className="space-y-6 animate-[fadeIn_0.4s_ease-out]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">إدارة مستخدمي النظام والصلاحيات في السحاب</h2>
+                    <p className="text-xs text-slate-500">إنشاء حسابات الموظفين والمدراء مع الحفظ السحابي الآمن</p>
+                  </div>
+
+                  <button onClick={() => setIsAddUserOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center space-x-2 space-x-reverse">
+                    <IconPlusCircle className="w-4 h-4" />
+                    <span>إضافة مستخدم جديد</span>
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right text-sm min-w-[600px]">
+                      <thead>
+                        <tr className="bg-slate-900 text-white font-bold text-xs">
+                          <th className="p-4">اسم المستخدم / الموظف</th>
+                          <th className="p-4">اسم الدخول (Username)</th>
+                          <th className="p-4">كلمة المرور</th>
+                          <th className="p-4">الدور / الصلاحية</th>
+                          <th className="p-4">الحالة</th>
+                          <th className="p-4 text-center">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {users.map(u => (
+                          <tr key={u.id} className="hover:bg-slate-50">
+                            <td className="p-4 font-bold text-slate-900 flex items-center space-x-2 space-x-reverse">
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">{u.name.substring(0, 2)}</div>
+                              <span>{u.name}</span>
+                            </td>
+                            <td className="p-4 font-mono text-xs font-semibold text-slate-600">{u.username}</td>
+                            <td className="p-4 font-mono text-xs text-slate-700">
+                              <span className="bg-slate-100 px-2 py-1 rounded border font-mono font-bold text-emerald-800">{u.password || '••••••••'}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-blue-100 text-blue-800 border border-blue-200'}`}>
+                                {u.role === 'admin' ? 'مدير نظام (Admin)' : 'موظف / عامل (Staff)'}
+                              </span>
+                            </td>
+                            <td className="p-4"><span className="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded text-xs font-bold">{u.status}</span></td>
+                            <td className="p-4 text-center">
+                              <button 
+                                onClick={async () => {
+                                  if (!user) return;
+                                  if (users.length > 1) {
+                                    await deleteDoc(getCloudDoc('users', u.id));
+                                    showToast('تم حذف المستخدم من السحاب');
+                                  } else {
+                                    showToast('لا يمكن حذف المستخدم الوحيد في النظام', 'error');
+                                  }
+                                }}
+                                className="text-xs text-rose-600 hover:text-rose-800 font-bold"
+                              >
+                                حذف
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SYSTEM SETTINGS */}
+            {activeTab === 'settings' && (
+              <div className="space-y-6 animate-[fadeIn_0.4s_ease-out]">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                  <h2 className="text-xl font-bold text-slate-900">إعدادات النظام والنسخ السحابي الاحتياطي</h2>
+                  <p className="text-xs text-slate-500">تخصيص هوية المحل، إدارة البيانات وتصدير ملف احتياطي متكامل</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-900 text-sm border-b pb-3 flex items-center gap-2">
+                      <IconSettings className="w-4 h-4 text-emerald-700" />
+                      <span>هوية واسم المحل المزامنة سحابياً</span>
+                    </h3>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">اسم المحل / المكتب</label>
+                      <input type="text" value={sysSettings.appName} onChange={e => handleSaveSettings({...sysSettings, appName: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">الوصف الفرعي</label>
+                      <input type="text" value={sysSettings.subTitle} onChange={e => handleSaveSettings({...sysSettings, subTitle: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">رمز الشعار (الأحرف)</label>
+                      <input type="text" maxLength={3} value={sysSettings.logoText} onChange={e => handleSaveSettings({...sysSettings, logoText: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-bold text-center font-mono uppercase" />
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-900 text-sm border-b pb-3 flex items-center gap-2">
+                      <IconDatabase className="w-4 h-4 text-emerald-700" />
+                      <span>حماية البيانات والنسخ الاحتياطي السحابي</span>
+                    </h3>
+                    <p className="text-xs text-slate-500">كافة الحوالات والمحافظ مخزنة تلقائياً في السحاب. يمكن بالإضافة لذلك استخراج ملف JSON آمن للنسخ المحلي.</p>
+                    <div className="space-y-3 pt-2">
+                      <button onClick={handleExportBackup} className="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 space-x-reverse">
+                        <IconDownload className="w-4 h-4" />
+                        <span>تحميل نسخة احتياطية (Export Backup JSON)</span>
+                      </button>
+                      <label className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 space-x-reverse cursor-pointer border">
+                        <IconRefreshCw className="w-4 h-4" />
+                        <span>استعادة نسخة احتياطية للسحاب (Restore JSON)</span>
+                        <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* MODAL: ADD / EDIT WALLET */}
+          {isAddWalletOpen && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border">
+                <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 text-white p-5 flex items-center justify-between">
+                  <h3 className="font-bold text-base">{editingWallet ? 'تعديل المحفظة' : 'إضافة محفظة فرعية جديدة'}</h3>
+                  <button onClick={() => setIsAddWalletOpen(false)} className="text-emerald-200 hover:text-white"><IconXCircle className="w-5 h-5" /></button>
+                </div>
+                <form onSubmit={handleSaveWallet} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">اسم المحفظة / الحساب *</label>
+                    <input type="text" required placeholder="مثال: حساب أحمد رياض (بنك شيكل)" value={walletForm.name} onChange={(e) => setWalletForm({...walletForm, name: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">العملة *</label>
+                      <select value={walletForm.currency} onChange={(e) => setWalletForm({...walletForm, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border rounded-xl text-sm font-bold">
+                        <option value="ILS">شيكل (ILS)</option>
+                        <option value="USD">دولار (USD)</option>
+                        <option value="USDT">تيزر (USDT)</option>
+                        <option value="EGP">جنيه (EGP)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">الرصيد الحالي *</label>
+                      <input type="number" step="any" required placeholder="0.00" value={walletForm.balance} onChange={(e) => setWalletForm({...walletForm, balance: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-mono" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">صاحب الحساب / المسؤول *</label>
+                    <input type="text" required placeholder="مثال: الخزينة الرئيسية / أحمد" value={walletForm.owner} onChange={(e) => setWalletForm({...walletForm, owner: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm" />
+                  </div>
+                  <div className="pt-3 flex justify-end space-x-2 space-x-reverse">
+                    <button type="button" onClick={() => setIsAddWalletOpen(false)} className="px-4 py-2 bg-slate-100 text-xs font-bold rounded-xl">إلغاء</button>
+                    <button type="submit" className="px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">حفظ</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL: ADD / EDIT SUPPLIER */}
+          {isAddSupplierOpen && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border">
+                <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 text-white p-5 flex items-center justify-between">
+                  <h3 className="font-bold text-base">{editingSupplier ? 'تعديل بيانات المورد' : 'إضافة مورد جديد'}</h3>
+                  <button onClick={() => setIsAddSupplierOpen(false)} className="text-emerald-200 hover:text-white"><IconXCircle className="w-5 h-5" /></button>
+                </div>
+                <form onSubmit={handleSaveSupplier} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">اسم المورد / المركز *</label>
+                    <input type="text" required placeholder="مثال: مورد مصر (مركزي)" value={supplierForm.name} onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">البلد *</label>
+                      <input type="text" required placeholder="مصر / تركيا / دبي" value={supplierForm.country} onChange={(e) => setSupplierForm({...supplierForm, country: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">العملة الافتراضية</label>
+                      <input type="text" placeholder="EGP / USD" value={supplierForm.defaultCurrency} onChange={(e) => setSupplierForm({...supplierForm, defaultCurrency: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-mono" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">محافظ وحسابات المورد (كل محفظة في سطر)</label>
+                    <textarea rows="3" placeholder="Vodafone Cash 0101234567" value={supplierForm.walletsText} onChange={(e) => setSupplierForm({...supplierForm, walletsText: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-xs font-mono"></textarea>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">رقم الهاتف / للتواصل</label>
+                    <input type="text" placeholder="+201..." value={supplierForm.phone} onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-xs font-mono" />
+                  </div>
+                  <div className="pt-3 flex justify-end space-x-2 space-x-reverse">
+                    <button type="button" onClick={() => setIsAddSupplierOpen(false)} className="px-4 py-2 bg-slate-100 text-xs font-bold rounded-xl">إلغاء</button>
+                    <button type="submit" className="px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">حفظ المورد</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL: INTERNAL TRANSFER */}
+          {isInternalTransferOpen && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border">
+                <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 text-white p-5 flex items-center justify-between">
+                  <h3 className="font-bold text-base">تحويل داخلي بين المحافظ</h3>
+                  <button onClick={() => setIsInternalTransferOpen(false)} className="text-emerald-200 hover:text-white"><IconXCircle className="w-5 h-5" /></button>
+                </div>
+                <form onSubmit={handleInternalTransfer} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">من محفظة (الخصم) *</label>
+                    <select value={transferForm.fromWalletId} onChange={(e) => setTransferForm({...transferForm, fromWalletId: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-bold">
+                      {wallets.map(w => (<option key={w.id} value={w.id}>{w.name} ({w.balance} {w.currency})</option>))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">إلى محفظة (الإضافة) *</label>
+                    <select value={transferForm.toWalletId} onChange={(e) => setTransferForm({...transferForm, toWalletId: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-bold">
+                      {wallets.map(w => (<option key={w.id} value={w.id}>{w.name} ({w.balance} {w.currency})</option>))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">المبلغ *</label>
+                      <input type="number" step="any" required placeholder="0.00" value={transferForm.amount} onChange={(e) => setTransferForm({...transferForm, amount: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">سعر التحويل (إن وُجد)</label>
+                      <input type="number" step="any" placeholder="1" value={transferForm.rate} onChange={(e) => setTransferForm({...transferForm, rate: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-mono" />
+                    </div>
+                  </div>
+                  <div className="pt-3 flex justify-end space-x-2 space-x-reverse">
+                    <button type="button" onClick={() => setIsInternalTransferOpen(false)} className="px-4 py-2 bg-slate-100 text-xs font-bold rounded-xl">إلغاء</button>
+                    <button type="submit" className="px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">تأكيد التحويل الداخلي</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL: ADD USER */}
+          {isAddUserOpen && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border">
+                <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 text-white p-5 flex items-center justify-between">
+                  <h3 className="font-bold text-base">إضافة مستخدم جديد للنظام</h3>
+                  <button onClick={() => setIsAddUserOpen(false)} className="text-emerald-200 hover:text-white"><IconXCircle className="w-5 h-5" /></button>
+                </div>
+                <form onSubmit={handleAddUser} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">الاسم الكامل *</label>
+                    <input type="text" required placeholder="مثال: خالد صراف" value={userForm.name} onChange={(e) => setUserForm({...userForm, name: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">اسم الدخول (Username) *</label>
+                    <input type="text" required placeholder="khaled_staff" value={userForm.username} onChange={(e) => setUserForm({...userForm, username: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-mono" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">كلمة المرور *</label>
+                    <input type="text" required placeholder="أدخل كلمة المرور للمستخدم" value={userForm.password} onChange={(e) => setUserForm({...userForm, password: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-mono" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">الصلاحية / الدور *</label>
+                    <select value={userForm.role} onChange={(e) => setUserForm({...userForm, role: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm font-bold">
+                      <option value="staff">موظف / عامل (تسجيل الحوالات والعرض)</option>
+                      <option value="admin">مدير نظام كامل (Admin)</option>
+                    </select>
+                  </div>
+                  <div className="pt-3 flex justify-end space-x-2 space-x-reverse">
+                    <button type="button" onClick={() => setIsAddUserOpen(false)} className="px-4 py-2 bg-slate-100 text-xs font-bold rounded-xl">إلغاء</button>
+                    <button type="submit" className="px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">إنشاء الحساب</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL: ADD NEW TRANSACTION */}
+          {isAddTxOpen && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+              <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden border max-h-[95vh] flex flex-col">
+                <div className="bg-gradient-to-r from-emerald-900 to-emerald-800 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
+                  <h3 className="font-bold text-sm sm:text-lg">تسجيل حوالة وتنفيذ الخصم/الزيادة الآلية</h3>
+                  <button onClick={() => setIsAddTxOpen(false)} className="text-emerald-200 hover:text-white"><IconXCircle className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+                </div>
+
+                <form onSubmit={handleAddTransaction} className="p-4 sm:p-6 space-y-4 overflow-y-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">اسم العميل بالكامل *</label>
+                      <input type="text" required placeholder="مثال: محمد سعيد الخاطر" value={newTx.clientName} onChange={(e) => setNewTx({...newTx, clientName: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-xs sm:text-sm" />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">المورد الخارجي / مركز الحوالات *</label>
+                      <select
+                        value={newTx.supplierId}
+                        onChange={(e) => {
+                          const supId = e.target.value;
+                          const sup = suppliers.find(s => s.id === supId);
+                          setNewTx({ ...newTx, supplierId: supId, supplierWallet: sup && sup.wallets && sup.wallets.length > 0 ? sup.wallets[0] : '' });
+                        }}
+                        className="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs sm:text-sm font-bold"
+                      >
+                        {suppliers.map(s => (<option key={s.id} value={s.id}>{s.name} ({s.country})</option>))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">محفظة المورد المستخدمة للحوالة</label>
+                      <select value={newTx.supplierWallet} onChange={(e) => setNewTx({...newTx, supplierWallet: e.target.value})} className="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-mono">
+                        {suppliers.find(s => s.id === newTx.supplierId)?.wallets?.map((w, idx) => (
+                          <option key={idx} value={w}>{w}</option>
+                        )) || <option value="">لا توجد محافظ مخصصة للمورد</option>}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Inflow USDT */}
+                  <div className="bg-emerald-50/70 p-3.5 sm:p-4 rounded-xl border border-emerald-200 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-emerald-900 mb-1">وارد الـ USDT من المورد</label>
+                        <input type="number" step="any" placeholder="0.00" value={newTx.inflowUsdt} onChange={(e) => setNewTx({...newTx, inflowUsdt: e.target.value})} className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-lg text-xs sm:text-sm font-mono font-bold text-emerald-800" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-emerald-900 mb-1">حالة استلام الـ USDT</label>
+                        <select value={newTx.isUsdtReceived ? 'yes' : 'no'} onChange={(e) => setNewTx({...newTx, isUsdtReceived: e.target.value === 'yes'})} className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-lg text-xs font-bold">
+                          <option value="yes">تم استلام الـ USDT فوراً (إضافة للمحفظة)</option>
+                          <option value="no">لم أستلم USDT الآن (تبقى معلقة عند المورد)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {newTx.isUsdtReceived && (
+                      <div>
+                        <label className="block text-xs font-bold text-emerald-900 mb-1">تنسيب وتزويد رصيد الـ USDT في محفظة: *</label>
+                        <select value={newTx.inflowUsdtWalletId} onChange={(e) => setNewTx({...newTx, inflowUsdtWalletId: e.target.value})} className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-slate-800">
+                          {wallets.filter(w => w.currency === 'USDT').map(w => (
+                            <option key={w.id} value={w.id}>{w.name} (الرصيد: ${w.balance} USDT)</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Outflow / Client Delivery */}
+                  <div className="bg-rose-50/70 p-3.5 sm:p-4 rounded-xl border border-rose-200 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-rose-900 mb-1">المبلغ المخصوم والمسلم للعميل *</label>
+                        <input type="number" step="any" placeholder="350" value={newTx.outflowAmount} onChange={(e) => setNewTx({...newTx, outflowAmount: e.target.value})} className="w-full px-3 py-2 bg-white border border-rose-300 rounded-lg text-xs sm:text-sm font-mono font-bold text-rose-900" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-rose-900 mb-1">سعر الصرف للحوالة</label>
+                        <input type="number" step="any" placeholder="3.70" value={newTx.exchangeRate} onChange={(e) => setNewTx({...newTx, exchangeRate: e.target.value})} className="w-full px-3 py-2 bg-white border border-rose-300 rounded-lg text-xs sm:text-sm font-mono text-slate-800" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-rose-900 mb-1">خصم وتنزيل المبلغ المسلم من محفظة المكتب: *</label>
+                      <select value={newTx.outflowWalletId} onChange={(e) => setNewTx({...newTx, outflowWalletId: e.target.value})} className="w-full px-3 py-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-slate-800">
+                        {wallets.map(w => (
+                          <option key={w.id} value={w.id}>{w.name} ({w.owner}) — الرصيد: {w.balance} {w.currency}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">ملاحظات الحوالة</label>
+                    <textarea rows="2" placeholder="ملاحظات تفصيلية..." value={newTx.notes} onChange={(e) => setNewTx({...newTx, notes: e.target.value})} className="w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-xs"></textarea>
+                  </div>
+
+                  <div className="pt-3 flex justify-end space-x-2 space-x-reverse shrink-0">
+                    <button type="button" onClick={() => setIsAddTxOpen(false)} className="px-4 py-2 bg-slate-100 text-xs font-bold rounded-xl">إلغاء</button>
+                    <button type="submit" className="px-5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">تأكيد وتسجيل الحوالة</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
